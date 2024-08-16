@@ -21,63 +21,86 @@ c.execute('''CREATE TABLE IF NOT EXISTS inventory (
 conn.commit()
 
 # Function to calculate bill amount
-def calculate_bill(start_date, end_date, rate_per_day):
+def calculate_bill(start_date, end_date, rate_per_day, quantity):
     days_stored = (end_date - start_date).days
-    return days_stored * rate_per_day
+    return days_stored * rate_per_day * quantity
 
-# Title of the app
-st.title("OFC Cold Storage System")
+# Sidebar for navigation
+st.sidebar.title("Navigation")
+page = st.sidebar.selectbox("Select a page", ["Add Item", "Update Item", "Delete Item", "View Items", "History"])
 
-# Form to add or update inventory items
-with st.form(key='inventory_form'):
-    name = st.text_input("Name")
-    gst_number = st.text_input("GST Number")
-    start_date = st.date_input("Start Date")
-    end_date = st.date_input("End Date")
-    quantity = st.number_input("Quantity", min_value=0)
-    rate_per_day = st.number_input("Rate per Day", min_value=0.0)
+# Add Item Page
+if page == "Add Item":
+    st.title("Add Inventory Item")
+    with st.form(key='add_item_form'):
+        name = st.text_input("Name")
+        gst_number = st.text_input("GST Number")
+        start_date = st.date_input("Start Date")
+        end_date = st.date_input("End Date")
+        quantity = st.number_input("Quantity", min_value=0)
+        rate_per_day = st.number_input("Rate per Day", min_value=0.0)
+        
+        # Calculate bill amount
+        if start_date and end_date:
+            bill_amount = calculate_bill(start_date, end_date, rate_per_day, quantity)
+        else:
+            bill_amount = 0
+        
+        submit_button = st.form_submit_button(label='Add Item')
     
-    # Calculate bill amount
-    if start_date and end_date:
-        bill_amount = calculate_bill(start_date, end_date, rate_per_day)
-    else:
-        bill_amount = 0
-    
-    submit_button = st.form_submit_button(label='Add/Update Item')
-
-# Add or update the inventory item
-if submit_button:
-    new_item = (name, gst_number, start_date, end_date, quantity, rate_per_day, bill_amount)
-    
-    # Check if the item already exists
-    c.execute("SELECT * FROM inventory WHERE name=?", (name,))
-    existing_item = c.fetchone()
-    
-    if existing_item:
-        c.execute('''UPDATE inventory SET 
-                        gst_number=?, start_date=?, end_date=?, quantity=?, rate_per_day=?, bill_amount=?
-                     WHERE name=?''', (gst_number, start_date, end_date, quantity, rate_per_day, bill_amount, name))
-        st.success("Item updated successfully!")
-    else:
+    if submit_button:
         c.execute('''INSERT INTO inventory (name, gst_number, start_date, end_date, quantity, rate_per_day, bill_amount)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)''', new_item)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)''', (name, gst_number, start_date, end_date, quantity, rate_per_day, bill_amount))
+        conn.commit()
         st.success("Item added successfully!")
+
+# Update Item Page
+elif page == "Update Item":
+    st.title("Update Inventory Item")
+    item_id = st.number_input("Enter the ID of the item to update", min_value=1)
+    with st.form(key='update_item_form'):
+        name = st.text_input("Name")
+        gst_number = st.text_input("GST Number")
+        start_date = st.date_input("Start Date")
+        end_date = st.date_input("End Date")
+        quantity = st.number_input("Quantity", min_value=0)
+        rate_per_day = st.number_input("Rate per Day", min_value=0.0)
+        
+        # Calculate bill amount
+        if start_date and end_date:
+            bill_amount = calculate_bill(start_date, end_date, rate_per_day, quantity)
+        else:
+            bill_amount = 0
+        
+        submit_button = st.form_submit_button(label='Update Item')
     
-    conn.commit()
+    if submit_button:
+        c.execute('''UPDATE inventory SET 
+                        name=?, gst_number=?, start_date=?, end_date=?, quantity=?, rate_per_day=?, bill_amount=?
+                     WHERE id=?''', (name, gst_number, start_date, end_date, quantity, rate_per_day, bill_amount, item_id))
+        conn.commit()
+        st.success("Item updated successfully!")
 
-# Display the inventory data
-st.subheader("Inventory Data")
-inventory_data = pd.read_sql_query("SELECT * FROM inventory", conn)
-st.dataframe(inventory_data)
+# Delete Item Page
+elif page == "Delete Item":
+    st.title("Delete Inventory Item")
+    item_id = st.number_input("Enter the ID of the item to delete", min_value=1)
+    if st.button("Delete Item"):
+        c.execute("DELETE FROM inventory WHERE id=?", (item_id,))
+        conn.commit()
+        st.success("Item deleted successfully!")
 
-# Option to delete an item
-delete_name = st.text_input("Enter the Name of the item to delete")
-if st.button("Delete Item"):
-    c.execute("DELETE FROM inventory WHERE name=?", (delete_name,))
-    conn.commit()
-    st.success("Item deleted successfully!")
+# View Items Page
+elif page == "View Items":
+    st.title("View Inventory Items")
     inventory_data = pd.read_sql_query("SELECT * FROM inventory", conn)
     st.dataframe(inventory_data)
+
+# History Page
+elif page == "History":
+    st.title("Inventory History")
+    history_data = pd.read_sql_query("SELECT * FROM inventory", conn)
+    st.dataframe(history_data)
 
 # Close the database connection
 conn.close()
