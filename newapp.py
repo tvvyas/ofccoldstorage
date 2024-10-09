@@ -119,6 +119,7 @@ elif page == "Update Item":
                                  name=?, gst_number=?, start_date=?, end_date=?, quantity=?, rate_per_day=?, bill_amount=?
                                  WHERE id=?''', (name, gst_number, start_date, end_date, quantity, rate_per_day, bill_amount, item_id))
                     conn.commit()
+                    log_history(item_id, name, gst_number, start_date, end_date, quantity, rate_per_day, bill_amount)
                     st.success("Item updated successfully!")
                 except Exception as e:
                     st.error(f"Error updating item: {e}")
